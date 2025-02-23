@@ -3,33 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PPPoE & Hotspot Monitoring</title>
+    <title>Cleon PPPoE & Hotspot Monitoring</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap');
+
         body {
-            background-color: #f8f9fa;
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f7fc;
+            color: #333;
+            margin: 0;
+            padding: 0;
         }
+
         .container {
-            max-width: 700px;
-            margin-top: 20px;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
         }
-        .table th, .table td {
+
+        /* Header Styling */
+        h2 {
             text-align: center;
+            font-weight: 700;
+            background: linear-gradient(to right, #007bff, #6610f2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
         }
+
+        #last-updated {
+            text-align: center;
+            font-size: 14px;
+            color: #6c757d;
+        }
+
+        /* Summary Box */
+        .summary-box {
+            display: flex;
+            justify-content: space-around;
+            background: linear-gradient(135deg, #007bff, #6610f2);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Table Styling */
+        .table {
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+            box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .table th, .table td {
+            text-align: center;  /* Center text */
+            vertical-align: middle; /* Center vertically */
+            padding: 12px; /* Add some padding */
+        }
+
+        .table th {
+            background-color: #007bff;
+            color: white;
+            text-transform: uppercase;
+        }
+
+        .table tbody tr:hover {
+            background-color: rgba(0, 123, 255, 0.1);
+            transition: background 0.3s ease-in-out;
+        }
+
+
+        /* Buttons */
         .copy-btn {
-            margin-top: 10px;
+            margin-top: 15px;
             width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #28a745, #218838);
+            border: none;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease-in-out;
         }
+
+        .copy-btn:hover {
+            background: linear-gradient(135deg, #218838, #1e7e34);
+            transform: scale(1.02);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            .summary-box {
+                flex-direction: column;
+                text-align: center;
+                gap: 5px;
+            }
+        }
+
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2 class="text-center">PPPoE & Hotspot Monitoring</h2>
+    <h2 class="text-center">Cleon PPPoE & Hotspot Monitoring</h2>
     <p class="text-center text-muted" id="last-updated">Fetching data...</p>
 
+    <!-- Summary Total Active Users -->
+    <div class="summary-box">
+        <p><strong>Total Active PPPoE:</strong> <span id="total-pppoe">0</span></p>
+        <p><strong>Total Active Hotspot:</strong> <span id="total-hotspot">0</span></p>
+    </div>
+
+    <!-- PPPoE Table -->
+    <h4 class="text-center">PPPoE Devices</h4>
     <table class="table table-bordered table-striped">
         <thead>
             <tr>
@@ -38,16 +140,31 @@
                 <th>Total</th>
             </tr>
         </thead>
-        <tbody id="data-table"></tbody>
+        <tbody id="pppoe-table"></tbody>
+    </table>
+
+    <!-- Hotspot Table -->
+    <h4 class="text-center">Hotspot Devices</h4>
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>Device</th>
+                <th>Active</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody id="hotspot-table"></tbody>
     </table>
 
     <button class="btn btn-primary copy-btn" id="copyButton">Copy Report</button>
 </div>
 
 <script>
+    const hotspotDevices = ["K1", "K2", "JSS"];
+
     async function fetchData() {
         try {
-            const response = await fetch('http://xxx.xx.xxx.xxx:xxxx/api/pppoe'); // Isi dengan lokasi API Flask Server
+            const response = await fetch('http://202.169.224.61:8025/api/pppoe');
             const data = await response.json();
 
             if (!response.ok) throw new Error('Failed to fetch data');
@@ -61,20 +178,44 @@
         }
     }
 
-
     function updateDashboard(data) {
-        let totalActive = 0;
-        let tableBody = document.getElementById("data-table");
-        tableBody.innerHTML = ""; // Clear previous data
+        let totalActivePPPoE = 0;
+        let totalActiveHotspot = 0;
+
+        let pppoeTable = document.getElementById("pppoe-table");
+        let hotspotTable = document.getElementById("hotspot-table");
+
+        // Clear previous data
+        pppoeTable.innerHTML = "";
+        hotspotTable.innerHTML = "";
 
         for (const [key, value] of Object.entries(data)) {
+            let row;
             if (value.error) {
-                tableBody.innerHTML += `<tr><td>${key}</td><td colspan="2" style="color:red">Error</td></tr>`;
+                row = `<tr><td>${key}</td><td colspan="2" style="color:red">Error</td></tr>`;
             } else {
-                tableBody.innerHTML += `<tr><td>${key}</td><td>${value.active}</td><td>${value.total}</td></tr>`;
-                if (!isNaN(value.active)) totalActive += value.active;
+                row = `<tr><td>${key}</td><td>${value.active}</td><td>${value.total}</td></tr>`;
+
+                if (!isNaN(value.active)) {
+                    if (hotspotDevices.includes(key)) {
+                        totalActiveHotspot += value.active;
+                    } else {
+                        totalActivePPPoE += value.active;
+                    }
+                }
+            }
+
+            // Append row to the correct table
+            if (hotspotDevices.includes(key)) {
+                hotspotTable.innerHTML += row;
+            } else {
+                pppoeTable.innerHTML += row;
             }
         }
+
+        // Update total active users on page
+        document.getElementById("total-pppoe").innerText = totalActivePPPoE;
+        document.getElementById("total-hotspot").innerText = totalActiveHotspot;
 
         document.getElementById("last-updated").innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
     }
@@ -83,25 +224,38 @@
         let date = new Date();
         let formattedDate = date.toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
 
-        let text = `Hasil Monitoring Daily ${formattedDate}\n\n`;
+        let text = `*Hasil Monitoring Daily ${formattedDate}*\n\n`;
 
-        let totalActive = 0;
+        let totalActivePPPoE = 0;
+        let totalActiveHotspot = 0;
+
+        // PPPoE Section
+        text += "*PPPoE:*\n";
         for (const [key, value] of Object.entries(data)) {
-            if (!value.error) {
-                text += `${key}\n${value.active}/${value.total} PPPOE\n\n`;
-                if (!isNaN(value.active)) totalActive += value.active;
+            if (!hotspotDevices.includes(key) && !value.error) {
+                text += `*${key}*\n${value.active}/${value.total} PPPOE\n\n`;
+                if (!isNaN(value.active)) totalActivePPPoE += value.active;
             }
         }
+        text += `*Total Aktif PPPoE:* ${totalActivePPPoE} PPPOE\n\n`;
 
-        text += `Total aktif\n${totalActive} PPPOE`;
+        // Hotspot Section
+        text += "*Hotspot:*\n";
+        for (const [key, value] of Object.entries(data)) {
+            if (hotspotDevices.includes(key) && !value.error) {
+                text += `*${key}*\n${value.active}/Active\n\n`;
+                if (!isNaN(value.active)) totalActiveHotspot += value.active;
+            }
+        }
+        text += `*Total Aktif Hotspot:* ${totalActiveHotspot} Active\n`;
 
-        // Fallback method for HTTP
+        // Copy to clipboard functionality
         document.getElementById("copyButton").onclick = function () {
             let tempInput = document.createElement("textarea");
             tempInput.value = text;
             document.body.appendChild(tempInput);
             tempInput.select();
-            document.execCommand("copy");  // Works on HTTP
+            document.execCommand("copy");
             document.body.removeChild(tempInput);
             alert("Data copied to clipboard!");
         };
@@ -112,8 +266,7 @@
 
     // Fetch on page load
     fetchData();
-  </script>
-
+</script>
 
 </body>
 </html>
